@@ -48,47 +48,48 @@
 #include "version.h"
 #include "wd_client.h"
 
-#define APPLE_REDIRECT_MSG  "<!DOCTYPE html>"    \
-                "<html>"                        \
-                "<title>Success</title>"        \
-                "<script type=\"text/javascript\">"    \
-                    "window.location.replace(\"%s\");"    \
-                "</script>"    \
-                "<body>"    \
-                "Success"    \
-                "</body>"    \
-                "</html>"
+#define APPLE_REDIRECT_MSG  "<!DOCTYPE html>"	\
+				"<html>"						\
+				"<title>Success</title>"		\
+				"<script type=\"text/javascript\">"	\
+					"window.location.replace(\"%s\");"	\
+				"</script>"	\
+				"<body>"	\
+				"Success"	\
+				"</body>"	\
+				"</html>"
 
 
 extern struct evbuffer *evb_internet_offline_page, *evb_authserver_offline_page;
 extern struct redir_file_buffer *wifidog_redir_html;
 
 const char *apple_domains[] = {
-        "captive.apple.com",
-        "www.apple.com",
-        NULL
+					"captive.apple.com",
+					"www.apple.com",
+					NULL
 };
 
 const char *apple_wisper = "<!DOCTYPE html>"
-                           "<html>"
-                           "<script type=\"text/javascript\">"
-                           "window.setTimeout(function() {location.href = \"captive.apple.com/hotspot-detect.html\";}, 12000);"
-                           "</script>"
-                           "<body>"
-                           "</body>"
-                           "</html>";
+				"<html>"
+				"<script type=\"text/javascript\">"
+					"window.setTimeout(function() {location.href = \"captive.apple.com/hotspot-detect.html\";}, 12000);"
+				"</script>"
+				"<body>"
+				"</body>"
+				"</html>";
 
 static int
-is_apple_captive(const char *domain) {
+is_apple_captive(const char *domain)
+{
     if (!domain) return 0;
 
-    int i = 0;
-    while (apple_domains[i]) {
-        if (strcmp(domain, apple_domains[i++]) == 0)
-            return 1;
-    }
+	int i = 0;
+	while(apple_domains[i]) {
+		if(strcmp(domain, apple_domains[i++]) == 0)
+			return 1;
+	}
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -104,9 +105,9 @@ is_apple_captive(const char *domain) {
  * 
  */
 static int
-process_apple_wisper(struct evhttp_request *req, const char *mac, const char *remote_host, const char *redir_url,
-                     const int mode) {
-    if (!is_apple_captive(evhttp_request_get_host(req))) return 0;
+process_apple_wisper(struct evhttp_request *req, const char *mac, const char *remote_host, const char *redir_url, const int mode)
+{
+	if(!is_apple_captive(evhttp_request_get_host(req))) return 0;
 
     if (mode == 2) { // not allow apple show its default captive page
         evhttp_send_reply(req, HTTP_OK, "OK", NULL);
@@ -117,7 +118,7 @@ process_apple_wisper(struct evhttp_request *req, const char *mac, const char *re
     LOCK_OFFLINE_CLIENT_LIST();
 
     t_offline_client *o_client = offline_client_list_find_by_mac(mac);
-    if (o_client == NULL) {
+    if(o_client == NULL) {
         o_client = offline_client_list_add(remote_host, mac);
     } else {
         o_client->last_login = time(NULL);
@@ -126,12 +127,12 @@ process_apple_wisper(struct evhttp_request *req, const char *mac, const char *re
 
     o_client->hit_counts++;
 
-    if (o_client->client_type == 1) {
+    if(o_client->client_type == 1 ) {
         UNLOCK_OFFLINE_CLIENT_LIST();
-        if (interval > 20) {
+        if(interval > 20) {
             fw_set_mac_temporary(mac, 0);
             ev_http_send_apple_redirect(req, redir_url);
-        } else if (o_client->hit_counts > 2)
+        } else if(o_client->hit_counts > 2)
             ev_http_send_apple_redirect(req, redir_url);
         else {
             ev_http_send_redirect(req, redir_url, "Redirect to login page");
@@ -153,24 +154,25 @@ process_apple_wisper(struct evhttp_request *req, const char *mac, const char *re
  *             other: auth server ont online
  */
 void
-ev_http_reply_client_error(struct evhttp_request *req, enum reply_client_error_type type) {
+ev_http_reply_client_error(struct evhttp_request *req, enum reply_client_error_type type)
+{
     static char *internet_offline = NULL, *authserver_offline = NULL;
     static int internet_offline_len = 0, authserver_offline_len = 0;
     struct evbuffer *out = evbuffer_new();
-    switch (type) {
-        case INTERNET_OFFLINE:
-            if (!internet_offline) {
-                internet_offline = evb_2_string(evb_internet_offline_page, &internet_offline_len);
-            }
-            evbuffer_add(out, internet_offline, internet_offline_len);
-            break;
-        case AUTHSERVER_OFFLINE:
-        default:
-            if (!authserver_offline) {
-                authserver_offline = evb_2_string(evb_authserver_offline_page, &authserver_offline_len);
-            }
-            evbuffer_add(out, authserver_offline, authserver_offline_len);
-            break;
+    switch(type) {
+    case INTERNET_OFFLINE:
+        if (!internet_offline) {
+            internet_offline = evb_2_string(evb_internet_offline_page, &internet_offline_len);
+        }
+        evbuffer_add(out, internet_offline, internet_offline_len);
+        break;
+    case AUTHSERVER_OFFLINE:
+    default:
+        if (!authserver_offline) {
+            authserver_offline = evb_2_string(evb_authserver_offline_page, &authserver_offline_len);
+        }
+        evbuffer_add(out, authserver_offline, authserver_offline_len);
+        break;
     }
 
     evhttp_send_reply(req, 200, "OK", out);
@@ -182,7 +184,8 @@ ev_http_reply_client_error(struct evhttp_request *req, enum reply_client_error_t
  * 
  */
 void
-ev_http_resend(struct evhttp_request *req) {
+ev_http_resend(struct evhttp_request *req)
+{
     char *orig_url = wd_get_orig_url(req);
     if (!orig_url) {
         evhttp_send_error(req, HTTP_INTERNAL, NULL);
@@ -199,8 +202,9 @@ ev_http_resend(struct evhttp_request *req) {
  * @return 1 end the http request or 0 continue the request
  */
 static int
-process_already_login_client(struct evhttp_request *req, const char *mac, const char *remote_host) {
-    if (!mac || !remote_host) return 0;
+process_already_login_client(struct evhttp_request *req, const char *mac, const char *remote_host)
+{
+	if (!mac || !remote_host) return 0;
 
     int flag = 0;
 
@@ -221,8 +225,9 @@ process_already_login_client(struct evhttp_request *req, const char *mac, const 
 }
 
 static int
-process_wired_device_pass(struct evhttp_request *req, const char *mac) {
-    if (!mac) return 0;
+process_wired_device_pass(struct evhttp_request *req, const char *mac)
+{
+	if (!mac) return 0;
 
     if (br_is_device_wired(mac)) {
         debug(LOG_DEBUG, "wired_passed: add %s to trusted mac", mac);
@@ -239,7 +244,8 @@ process_wired_device_pass(struct evhttp_request *req, const char *mac) {
  * 
  */
 void
-ev_http_callback_404(struct evhttp_request *req, void *arg) {
+ev_http_callback_404(struct evhttp_request *req, void *arg)
+{
     if (!is_online()) {
         ev_http_reply_client_error(req, INTERNET_OFFLINE);
         return;
@@ -253,7 +259,7 @@ ev_http_callback_404(struct evhttp_request *req, void *arg) {
     char *remote_host = NULL;
     uint16_t port;
     evhttp_connection_get_peer(evhttp_request_get_connection(req), &remote_host, &port);
-    if (remote_host == NULL) return;
+	if (remote_host == NULL) return;
 
     char mac[MAC_LENGTH] = {0};
     if (!br_arp_get_mac(remote_host, mac)) {
@@ -280,7 +286,7 @@ ev_http_callback_404(struct evhttp_request *req, void *arg) {
     else
         ev_http_send_redirect(req, redir_url, "Redirect to login page");
 
-    END:
+END:
     free(redir_url);
 }
 
@@ -288,7 +294,8 @@ ev_http_callback_404(struct evhttp_request *req, void *arg) {
  * 
  */
 void
-ev_http_callback_wifidog(struct evhttp_request *req, void *arg) {
+ev_http_callback_wifidog(struct evhttp_request *req, void *arg)
+{
     ev_send_http_page(req, "WiFiDog", "Please use the menu to navigate the features of this WiFiDog installation.");
 }
 
@@ -296,7 +303,8 @@ ev_http_callback_wifidog(struct evhttp_request *req, void *arg) {
  * 
  */
 void
-ev_http_callback_about(struct evhttp_request *req, void *arg) {
+ev_http_callback_about(struct evhttp_request *req, void *arg)
+{
     ev_send_http_page(req, "About WiFiDog", "This is WiFiDog version <strong>" VERSION "</strong>");
 }
 
@@ -305,7 +313,13 @@ ev_http_callback_about(struct evhttp_request *req, void *arg) {
  * 
  */
 void
-ev_http_callback_status(struct evhttp_request *req, void *arg) {
+ev_http_callback_status(struct evhttp_request *req, void *arg)
+{
+    const char *token = ev_http_find_query(req, "token");
+    if (strcmp(token, "123456") != 0) {
+        evhttp_send_error(req, 200, "Invalid token");
+        return;
+    }
     char *status = get_status_text();
     struct evbuffer *buffer = evbuffer_new();
 
@@ -324,18 +338,19 @@ ev_http_callback_status(struct evhttp_request *req, void *arg) {
  * @param text The text to include in the redirect header ant the mnual redirect title
  */
 void
-ev_http_send_redirect_to_auth(struct evhttp_request *req, const char *url_fragment, const char *text) {
+ev_http_send_redirect_to_auth(struct evhttp_request *req, const char *url_fragment, const char *text)
+{
     char *url;
     t_auth_serv *auth_server = get_auth_server();
 
     safe_asprintf(&url, "%s://%s:%d%s%s",
-                  auth_server->authserv_use_ssl ? "https" : "http",
-                  auth_server->authserv_hostname,
-                  auth_server->authserv_use_ssl ? auth_server->authserv_ssl_port : auth_server->authserv_http_port,
-                  auth_server->authserv_path, url_fragment);
+        auth_server->authserv_use_ssl?"https":"http",
+        auth_server->authserv_hostname,
+        auth_server->authserv_use_ssl?auth_server->authserv_ssl_port:auth_server->authserv_http_port,
+        auth_server->authserv_path, url_fragment);
 
     ev_http_send_redirect(req, url, text);
-    free(url);
+	free(url);
 }
 
 /**
@@ -345,7 +360,8 @@ ev_http_send_redirect_to_auth(struct evhttp_request *req, const char *url_fragme
  * @param text The text to include in the redirect header and the manual redirect link title.  NULL is acceptable
  */
 void
-ev_http_send_redirect(struct evhttp_request *req, const char *url, const char *text) {
+ev_http_send_redirect(struct evhttp_request * req, const char *url, const char *text)
+{
     struct evbuffer *evb = evbuffer_new();
     struct evkeyvalq *header = evhttp_request_get_output_headers(req);
     evhttp_add_header(header, "Location", url);
@@ -362,8 +378,9 @@ ev_http_send_redirect(struct evhttp_request *req, const char *url, const char *t
  * 
  */
 void
-ev_http_callback_auth(struct evhttp_request *req, void *arg) {
-    struct wd_request_context *context = (struct wd_request_context *) arg;
+ev_http_callback_auth(struct evhttp_request *req, void *arg)
+{
+    struct wd_request_context *context = (struct wd_request_context *)arg;
     const char *token = ev_http_find_query(req, "token");
     if (!token) {
         evhttp_send_error(req, 200, "Invalid token");
@@ -399,7 +416,7 @@ ev_http_callback_auth(struct evhttp_request *req, void *arg) {
 
     if (!new_client && logout) {
         ev_logout_client(context, client);
-    } else if (!logout) {
+    } else if (!logout){
         ev_authenticate_client(req, context, client);
     }
 
@@ -413,8 +430,9 @@ ev_http_callback_auth(struct evhttp_request *req, void *arg) {
  * 
  */
 void
-ev_http_callback_disconnect(struct evhttp_request *req, void *arg) {
-    struct wd_request_context *context = (struct wd_request_context *) arg;
+ev_http_callback_disconnect(struct evhttp_request *req, void *arg)
+{
+    struct wd_request_context *context = (struct wd_request_context *)arg;
     const char *token = ev_http_find_query(req, "token");
     const char *mac = ev_http_find_query(req, "mac");
 
@@ -443,7 +461,8 @@ ev_http_callback_disconnect(struct evhttp_request *req, void *arg) {
  * 
  */
 void
-ev_http_callback_temporary_pass(struct evhttp_request *req, void *arg) {
+ev_http_callback_temporary_pass(struct evhttp_request *req, void *arg)
+{
     const char *mac = ev_http_find_query(req, "mac");
 
     if (mac) {
@@ -465,25 +484,26 @@ ev_http_callback_temporary_pass(struct evhttp_request *req, void *arg) {
  * 
  */
 struct evbuffer *
-ev_http_read_html_file(const char *filename, struct evbuffer *evb) {
-    if (!evb) return NULL;
+ev_http_read_html_file(const char *filename, struct evbuffer *evb)
+{
+	if (!evb) return NULL;
 
-    int fd = open(filename, O_RDONLY);
-    if (fd == -1) {
-        debug(LOG_CRIT, "Failed to open HTML message file %s: %s", strerror(errno),
-              filename);
-        return NULL;
-    }
+	int fd = open(filename, O_RDONLY);
+	if (fd == -1) {
+		debug(LOG_CRIT, "Failed to open HTML message file %s: %s", strerror(errno),
+			filename);
+		return NULL;
+	}
 
-    if (evbuffer_add_file(evb, fd, 0, -1)) {
-        debug(LOG_CRIT, "Failed to read HTML message file %s: %s", strerror(errno),
-              filename);
-        close(fd);
-        return NULL;
-    }
+	if (evbuffer_add_file(evb, fd, 0, -1)) {
+		debug(LOG_CRIT, "Failed to read HTML message file %s: %s", strerror(errno),
+			filename);
+		close(fd);
+		return NULL;
+	}
 
-    close(fd);
-    return evb;
+	close(fd);
+	return evb;
 }
 
 /**
@@ -495,7 +515,8 @@ ev_http_read_html_file(const char *filename, struct evbuffer *evb) {
  * @todo need more complex process engine
  */
 void
-ev_send_http_page(struct evhttp_request *req, const char *title, const char *message) {
+ev_send_http_page(struct evhttp_request *req, const char *title, const char *message)
+{
     s_config *config = config_get_config();
     int fd = open(config->htmlmsgfile, O_RDONLY);
     if (fd == -1) {
@@ -532,36 +553,37 @@ ev_send_http_page(struct evhttp_request *req, const char *title, const char *mes
  * @param url The redirect url by js
  */
 void
-ev_http_send_js_redirect(struct evhttp_request *req, const char *redir_url) {
-    struct evbuffer *evb = evbuffer_new();
-    struct evbuffer *evb_redir_url = evbuffer_new();
+ev_http_send_js_redirect(struct evhttp_request *req, const char *redir_url)
+{
+    struct evbuffer *evb = evbuffer_new ();
+	struct evbuffer *evb_redir_url = evbuffer_new();
 
     if (!evb || !evb_redir_url) {
         evhttp_send_error(req, HTTP_INTERNAL, "Failed to evbuffer_new");
         goto ERR;
     }
 
-    evbuffer_add(evb, wifidog_redir_html->front, wifidog_redir_html->front_len);
-    evbuffer_add_printf(evb_redir_url, WIFIDOG_REDIR_HTML_CONTENT, redir_url);
-    evbuffer_add_buffer(evb, evb_redir_url);
-    evbuffer_add(evb, wifidog_redir_html->rear, wifidog_redir_html->rear_len);
+	evbuffer_add(evb, wifidog_redir_html->front, wifidog_redir_html->front_len);
+	evbuffer_add_printf(evb_redir_url, WIFIDOG_REDIR_HTML_CONTENT, redir_url);
+	evbuffer_add_buffer(evb, evb_redir_url);
+	evbuffer_add(evb, wifidog_redir_html->rear, wifidog_redir_html->rear_len);
 
     evhttp_add_header(evhttp_request_get_output_headers(req),
-                      "Content-Type", "text/html");
-    evhttp_add_header(evhttp_request_get_output_headers(req),
-                      "Cache-Control", "no-store, must-revalidate");
-    evhttp_add_header(evhttp_request_get_output_headers(req),
-                      "Expires", "0");
-    evhttp_add_header(evhttp_request_get_output_headers(req),
-                      "Pragma", "no-cache");
-    evhttp_add_header(evhttp_request_get_output_headers(req),
-                      "Connection", "close");
+		    "Content-Type", "text/html");
+	evhttp_add_header(evhttp_request_get_output_headers(req),
+		    "Cache-Control", "no-store, must-revalidate");
+	evhttp_add_header(evhttp_request_get_output_headers(req),
+		    "Expires", "0");
+	evhttp_add_header(evhttp_request_get_output_headers(req),
+		    "Pragma", "no-cache");
+	evhttp_add_header(evhttp_request_get_output_headers(req),
+		    "Connection", "close");
 
     evhttp_send_reply(req, 200, "OK", evb);
 
-    ERR:
+ERR:
     if (evb) evbuffer_free(evb);
-    if (evb_redir_url) evbuffer_free(evb_redir_url);
+	if (evb_redir_url) evbuffer_free(evb_redir_url);
 }
 
 /**
@@ -572,7 +594,8 @@ ev_http_send_js_redirect(struct evhttp_request *req, const char *redir_url) {
  * 
  */
 void
-ev_http_send_apple_redirect(struct evhttp_request *req, const char *redir_url) {
+ev_http_send_apple_redirect(struct evhttp_request *req, const char *redir_url)
+{
     struct evbuffer *evb = evbuffer_new();
     evbuffer_add_printf(evb, APPLE_REDIRECT_MSG, redir_url);
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -584,8 +607,9 @@ ev_http_send_apple_redirect(struct evhttp_request *req, const char *redir_url) {
  * 
  */
 void
-ev_http_replay_wisper(struct evhttp_request *req) {
-    struct evbuffer *evb = evbuffer_new();
+ev_http_replay_wisper(struct evhttp_request *req)
+{
+    struct evbuffer *evb = evbuffer_new ();
     if (!evb) return;
     evbuffer_add(evb, apple_wisper, strlen(apple_wisper));
     evhttp_send_reply(req, HTTP_OK, "OK", evb);
@@ -600,7 +624,8 @@ ev_http_replay_wisper(struct evhttp_request *req) {
  * @return NULL or key's value, the return value need to be free by caller
  */
 const char *
-ev_http_find_query(struct evhttp_request *req, const char *key) {
+ev_http_find_query(struct evhttp_request *req, const char *key)
+{
     const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
     struct evkeyvalq query;
 
