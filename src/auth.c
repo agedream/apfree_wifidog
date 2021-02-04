@@ -51,16 +51,15 @@ static void client_timeout_check_cb(evutil_socket_t, short, void *);
 @todo This thread loops infinitely, need a watchdog to verify that it is still running?
 */
 void
-thread_client_timeout_check(const void *arg)
-{
+thread_client_timeout_check(const void *arg) {
     wd_request_loop(client_timeout_check_cb);
 }
 
-static void 
+static void
 client_timeout_check_cb(evutil_socket_t fd, short event, void *arg) {
-	struct wd_request_context *context = (struct wd_request_context *)arg;
-	
-	debug(LOG_DEBUG, "client_timeout_check_cb begin");
+    struct wd_request_context *context = (struct wd_request_context *) arg;
+
+    debug(LOG_DEBUG, "client_timeout_check_cb begin");
 #ifdef AUTHSERVER_V2
     ev_fw_sync_with_authserver_v2(context);
 #else
@@ -81,10 +80,9 @@ client_timeout_check_cb(evutil_socket_t fd, short event, void *arg) {
  * 
  */
 void
-ev_logout_client(struct wd_request_context *context, t_client *client)
-{
+ev_logout_client(struct wd_request_context *context, t_client *client) {
     assert(!client);
-    
+
     fw_deny(client);
 
     LOCK_CLIENT_LIST();
@@ -94,9 +92,9 @@ ev_logout_client(struct wd_request_context *context, t_client *client)
     char *uri = get_auth_uri(REQUEST_TYPE_LOGOUT, ONLINE_CLIENT, client);
     client_free_node(client);
     if (!uri) return;
-    
+
     struct evhttp_connection *evcon = NULL;
-    struct evhttp_request *req      = NULL; 
+    struct evhttp_request *req = NULL;
     wd_make_request(context, &evcon, &req, process_auth_server_logout);
     evhttp_make_request(evcon, req, EVHTTP_REQ_GET, uri);
     free(uri);
@@ -113,18 +111,17 @@ ev_logout_client(struct wd_request_context *context, t_client *client)
  * @param client client by authenticated
  */
 void
-ev_authenticate_client(struct evhttp_request *req, 
-        struct wd_request_context *context, t_client *client)
-{
+ev_authenticate_client(struct evhttp_request *req,
+                       struct wd_request_context *context, t_client *client) {
     char *uri = get_auth_uri(REQUEST_TYPE_LOGIN, ONLINE_CLIENT, client);
     if (!uri) return;
 
     debug(LOG_DEBUG, "client login request [%s]", uri);
 
     struct evhttp_connection *wd_evcon = NULL;
-    struct evhttp_request *wd_req      = NULL;
+    struct evhttp_request *wd_req = NULL;
     context->data = client;
-    context->clt_req = req; 
+    context->clt_req = req;
     wd_make_request(context, &wd_evcon, &wd_req, process_auth_server_login);
     evhttp_make_request(wd_evcon, wd_req, EVHTTP_REQ_GET, uri);
     free(uri);
